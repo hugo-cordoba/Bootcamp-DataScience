@@ -1,0 +1,154 @@
+---
+title: "Problema LAB02"
+author: "Visual Analytics"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.height=8, fig.width=13)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r}
+# Desactivamos la notación científica. ¿A quién le gusta ver en sus gráficos números como
+# 1e25?
+options(scipen = 999) 
+
+# Cargamos las librerías necesarias para pintar
+library(ggplot2) # Nuestra biblia a partir de ahora
+library(scales) # Nos ayudará a mejorar el aspecto de nuestros gráficos
+library(tidyverse) # Necesario si queremos realizar algún tratamiento en los datos
+
+library(countrycode) # Códigos de pais
+
+library(ggridges)
+
+# Establecemos un tema por defecto para nuestros gráficos
+# Personalmente soy fanático de theme_bw(), es el tema clásico 'dark-on-light'
+# ggplot ofrece un listado de temas completos que puedes aprovechar. Echa un vistazo:
+# https://ggplot2.tidyverse.org/reference/ggtheme.html
+
+# Hay gente que realiza sus propios temas, generando auténticas obras de arte, ¿te atreves?
+theme_set(theme_bw())
+
+## Dataset 1
+
+launches <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-15/launches.csv")
+
+## Dataset 2
+
+movies <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-10-23/movie_profit.csv")
+
+```
+
+# Primer ejercicio
+
+1) Utilizando el dataset I (*launches*) genera un evolutivo para el TOP 7 de países y su histórico de lanzamientos espaciales. Describe dicho evolutivo (países protagonistas, tendencias, actualidad...)
+
+# Filtramos y limpiamos los datos  
+launches_clean <- launches %>%  
+  mutate(state_code_cleaned = fct_collapse(  
+    state_code,  
+    "RU" = c("SU", "RU"),  
+    "FR" = "F",  
+    "JP" = "J",  
+    "IT" = "I"  
+  )) %>%  
+  mutate(state_name = countrycode(state_code_cleaned, "iso2c", "country.name"),  
+         state_name = fct_lump(state_name, 7)) %>%  
+  replace_na(list(state_name = "Other"))  
+  
+# Agrupamos los datos por año y país  
+launches_per_year <- launches_clean %>%  
+  group_by(state_name, year) %>%  
+  summarize(launches = n()) %>%  
+  ungroup()  
+  
+# Generamos el gráfico evolutivo  
+ggplot(launches_per_year, aes(x = year, y = launches, color = state_name)) +  
+  geom_line(size = 1) +  
+  labs(title = "Evolución de lanzamientos espaciales por país",  
+       x = "Año", y = "Número de lanzamientos",  
+       color = "País") +  
+  theme_minimal()
+
+
+# Descripción del evolutivo:
+
+# - Países protagonistas: Los países con más lanzamientos son Rusia, Estados Unidos y China.
+# - Tendencias: Rusia y Estados Unidos han tenido una competencia histórica, con picos significativos durante la Guerra Fría. En las últimas décadas, China ha mostrado un crecimiento considerable.
+# - Actualidad: Rusia y China siguen siendo líderes en lanzamientos, con Estados Unidos también manteniendo un número significativo.
+
+2) Genera un **facet** para separar las series por Estado
+
+# Generamos el facet por estado  
+ggplot(launches_per_year, aes(x = year, y = launches, color = state_name)) +  
+  geom_line(size = 1) +  
+  labs(title = "Evolución de lanzamientos espaciales por país",  
+       x = "Año", y = "Número de lanzamientos",  
+       color = "País") +  
+  theme_minimal() +  
+  facet_wrap(~ state_name, scales = "free_y")  
+
+3) Genera un facet según el **tipo de agencia y usa un gráfico de áreas**. Realiza algún comentario sobre el gráfico obtenido
+
+# Agrupamos por tipo de agencia  
+launches_per_type <- launches_clean %>%  
+  group_by(type, year) %>%  
+  summarize(launches = n()) %>%  
+  ungroup()  
+  
+# Gráfico de áreas  
+ggplot(launches_per_type, aes(x = year, y = launches, fill = type)) +  
+  geom_area(alpha = 0.6) +  
+  labs(title = "Lanzamientos espaciales por tipo de agencia",  
+       x = "Año", y = "Número de lanzamientos",  
+       fill = "Tipo de Agencia") +  
+  theme_minimal() +  
+  facet_wrap(~ type, scales = "free_y") 
+
+ 
+# Comentario sobre el gráfico obtenido:
+
+# - Tendencias: Las agencias gubernamentales dominan la mayoría de los lanzamientos espaciales históricamente. Sin embargo, en los últimos años, las agencias comerciales han aumentado su participación, especialmente en Estados Unidos.
+# - Variaciones: Observamos picos en ciertas décadas, correspondientes a eventos históricos como la carrera espacial.
+
+
+
+
+# Segundo ejercicio
+
+1) Utilizando el segundo dataset (*movies*) genera un gráfico para estudiar la **distribución de los ingresos globales** según el género. Añade una recta vertical que marque la mediana global de los ingresos globales
+
+# Filtramos y limpiamos los datos  
+movies_clean <- movies %>%  
+  filter(!is.na(worldwide_gross))  
+  
+# Gráfico de distribución de ingresos globales por género  
+ggplot(movies_clean, aes(x = worldwide_gross, fill = genre)) +  
+  geom_histogram(binwidth = 50000000, position = "dodge") +  
+  labs(title = "Distribución de ingresos globales por género",  
+       x = "Ingresos Globales", y = "Frecuencia",  
+       fill = "Género") +  
+  geom_vline(aes(xintercept = median(worldwide_gross, na.rm = TRUE)),   
+             color = "red", linetype = "dashed", size = 1) +  
+  theme_minimal()   
+
+2) Genera un **joyplot** según el género de la película para estudiar la distribución del coste de producción. ¿En qué dos géneros dirías que cuesta más producir una película?
+
+# Gráfico joyplot  
+ggplot(movies_clean, aes(x = production_budget, y = genre, fill = genre)) +  
+  geom_density_ridges(scale = 0.9) +  
+  labs(title = "Distribución del coste de producción por género",  
+       x = "Coste de Producción", y = "Género",  
+       fill = "Género") +  
+  theme_minimal()
+
+
+# Géneros con mayor coste de producción:
+
+# - Acción y Aventura son los géneros que, en general, tienen los mayores costes de producción, reflejando la naturaleza intensiva en efectos especiales y escenarios de estas películas.
+# -Este código te permitirá completar ambos ejercicios y analizar las tendencias y distribuciones de los datos proporcionados. Asegúrate de ajustar los parámetros y estéticas según las necesidades específicas de tu análisis.
+
