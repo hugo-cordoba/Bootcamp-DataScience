@@ -1,0 +1,122 @@
+---
+title: "Análisis de Ventas de Premium Pizza"
+author: "Tu Nombre"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introducción
+
+Este informe analiza los datos de ventas de Premium Pizza, explorando tendencias en precios, unidades vendidas y otros factores relevantes.
+
+# Preparación de los Datos
+
+Primero, carguemos las bibliotecas necesarias y los datos.
+
+```{r load-libraries, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(DT)
+library(kableExtra)
+```
+
+```{r load-data}
+df_venta <- read.csv("data_PremiumPizza.csv", stringsAsFactors = FALSE)
+df_calendario <- read.csv("calendario_festivos.csv", stringsAsFactors = FALSE)
+
+# Convertir FECHA_SEMANA a tipo Date
+df_venta$FECHA_SEMANA <- as.Date(df_venta$FECHA_SEMANA)
+```
+
+# Análisis de Precios
+
+## Precio Medio por Año
+
+Vamos a calcular el precio medio por año y identificar el año con el precio más alto.
+
+```{r precio-medio}
+df_venta$AÑO <- format(df_venta$FECHA_SEMANA, "%Y")
+
+precio_medio_por_año <- aggregate(PRECIO ~ AÑO, data = df_venta, FUN = mean)
+precio_medio_por_año <- precio_medio_por_año[order(-precio_medio_por_año$PRECIO),]
+
+kable(precio_medio_por_año, caption = "Precio Medio por Año") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+año_precio_mas_alto <- precio_medio_por_año$AÑO[1]
+precio_mas_alto <- precio_medio_por_año$PRECIO[1]
+```
+
+**Conclusión:** El año con el precio medio más alto es `r año_precio_mas_alto` con un precio medio de `r round(precio_mas_alto, 2)`.
+
+# Análisis de Unidades Vendidas
+
+## Total de Unidades Vendidas en 2018
+
+Vamos a calcular el total de unidades vendidas en 2018, imputando los valores NA con la media.
+
+```{r unidades-2018}
+media_unidades <- mean(df_venta$UNIDADES, na.rm = TRUE)
+df_venta$UNIDADES_IMPUTADAS <- ifelse(is.na(df_venta$UNIDADES), media_unidades, df_venta$UNIDADES)
+
+unidades_2018 <- sum(df_venta$UNIDADES_IMPUTADAS[df_venta$AÑO == "2018"])
+
+```
+
+**Resultado:** El total de unidades vendidas en 2018 fue de `r round(unidades_2018, 0)`.
+
+# Análisis de Tiendas Abiertas
+
+## Media de Tiendas Abiertas en Enero 2018
+
+Calculemos la media de tiendas abiertas en enero de 2018.
+
+```{r tiendas-enero-2018}
+df_enero_2018 <- df_venta[format(df_venta$FECHA_SEMANA, "%Y-%m") == "2018-01", ]
+media_tiendas_enero_2018 <- mean(df_enero_2018$TIENDAS.ABIERTAS)
+```
+
+**Resultado:** La media de tiendas abiertas en enero de 2018 fue de `r round(media_tiendas_enero_2018, 3)`.
+
+# Análisis de GRPs
+
+## GRPs Medios en 2019
+
+Calculemos los GRPs medios para el año 2019.
+
+```{r grps-2019}
+df_2019 <- df_venta[df_venta$AÑO == "2019", ]
+grps_medio_2019 <- mean(df_2019$GRPs)
+```
+
+**Resultado:** Los GRPs medios en 2019 fueron de `r round(grps_medio_2019, 2)`.
+
+# Visualización de Datos
+
+## Evolución de Precios a lo Largo del Tiempo
+
+```{r plot-precios, fig.width=10, fig.height=6}
+ggplot(df_venta, aes(x = FECHA_SEMANA, y = PRECIO)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Evolución de Precios", x = "Fecha", y = "Precio")
+```
+
+# Conclusiones
+
+En este informe, hemos analizado varios aspectos de los datos de ventas de Premium Pizza:
+
+1. Identificamos que el año con el precio medio más alto fue `r año_precio_mas_alto`.
+2. Calculamos que en 2018 se vendieron aproximadamente `r round(unidades_2018, 0)` unidades.
+3. En enero de 2018, la media de tiendas abiertas fue de `r round(media_tiendas_enero_2018, 3)`.
+4. Los GRPs medios en 2019 fueron de `r round(grps_medio_2019, 2)`.
+
+Estos insights pueden ser útiles para entender las tendencias de ventas y pricing de la empresa, así como para informar futuras decisiones estratégicas.
